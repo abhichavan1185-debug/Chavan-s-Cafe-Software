@@ -41,17 +41,17 @@ export const ZomatoView: React.FC = () => {
   });
 
   return (
-    <div className="p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
+    <div className="min-w-0 p-4 sm:p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
       {/* Zomato Merchant Banner */}
-      <div className="bg-gradient-to-r from-[#e23744] to-[#b81522] text-white p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#e23744] to-[#b81522] text-white p-4 sm:p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-white text-[#e23744] flex items-center justify-center shadow-md">
             <UtensilsCrossed className="w-8 h-8 stroke-[2.5]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-black tracking-wide">ZOMATO RESTAURANT PARTNER</h2>
-              <span className="bg-white/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <h2 className="text-lg sm:text-2xl font-black tracking-wide">ZOMATO RESTAURANT PARTNER</h2>
+              <span className="hidden sm:inline-flex bg-white/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Outlet #89210 • Online
               </span>
             </div>

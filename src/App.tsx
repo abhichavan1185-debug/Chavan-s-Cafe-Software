@@ -73,25 +73,25 @@ function MainApp() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-stone-100 font-sans antialiased text-stone-900 select-none">
+    <div className="flex h-[100dvh] min-h-0 w-full min-w-0 overflow-hidden bg-stone-100 font-sans antialiased text-stone-900 select-none">
       {/* Enterprise Commercial Sidebar (Responsive Drawer on Mobile) */}
       <Sidebar />
 
       {/* Main App Content Viewport */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
         {/* Real-time Top Navigation */}
         <TopNav />
 
         {/* Dynamic View Panel */}
-        <main className="flex-1 overflow-hidden relative flex flex-col min-h-0">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {renderActiveView()}
         </main>
 
         {/* Mobile Bottom Quick Navigation Bar (< lg screens) */}
-        <nav className="lg:hidden h-14 bg-white border-t border-stone-200 flex items-center justify-around px-1 z-30 shadow-lg shrink-0">
+        <nav className="lg:hidden h-[calc(3.5rem+env(safe-area-inset-bottom))] bg-white border-t border-stone-200 flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)] z-30 shadow-lg shrink-0">
           <button
             onClick={() => setActiveView("pos")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
+            className={`flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
               activeView === "pos" ? "text-amber-800" : "text-stone-500 hover:text-stone-800"
             }`}
           >
@@ -101,7 +101,7 @@ function MainApp() {
 
           <button
             onClick={() => setActiveView("storefront")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
+            className={`flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
               activeView === "storefront" ? "text-amber-800" : "text-stone-500 hover:text-stone-800"
             }`}
           >
@@ -111,7 +111,7 @@ function MainApp() {
 
           <button
             onClick={() => setActiveView("swiggy")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
+            className={`flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
               activeView === "swiggy" ? "text-[#fc8019]" : "text-stone-500 hover:text-stone-800"
             }`}
           >
@@ -121,7 +121,7 @@ function MainApp() {
 
           <button
             onClick={() => setActiveView("zomato")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
+            className={`flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
               activeView === "zomato" ? "text-[#e23744]" : "text-stone-500 hover:text-stone-800"
             }`}
           >
@@ -131,7 +131,7 @@ function MainApp() {
 
           <button
             onClick={() => setActiveView("tracking")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
+            className={`flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold transition-colors ${
               activeView === "tracking" ? "text-amber-800" : "text-stone-500 hover:text-stone-800"
             }`}
           >
@@ -141,7 +141,7 @@ function MainApp() {
 
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold text-stone-500 hover:text-stone-800 transition-colors"
+            className="flex min-h-11 flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold text-stone-500 hover:text-stone-800 transition-colors"
           >
             <Menu className="w-4 h-4 mb-0.5 text-stone-500" />
             <span>More</span>

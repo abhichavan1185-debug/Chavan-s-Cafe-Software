@@ -127,9 +127,9 @@ export const TopNav: React.FC = () => {
   const roles: UserRole[] = ["ADMIN", "MANAGER", "CASHIER", "KITCHEN STAFF"];
 
   return (
-    <header className="h-16 bg-white border-b border-stone-200 px-3 sm:px-6 flex items-center justify-between flex-shrink-0 z-30 shadow-xs">
+    <header className="h-16 bg-white border-b border-stone-200 px-2 sm:px-6 flex items-center justify-between gap-1 flex-shrink-0 z-30 shadow-xs">
       {/* Left: Mobile Hamburger & Page Titles */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="lg:hidden p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition-colors flex items-center justify-center shrink-0"
@@ -182,16 +182,16 @@ export const TopNav: React.FC = () => {
       </div>
 
       {/* Right Controls: Role Switcher & Utilities */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         {/* Role Selector Pill */}
         <div className="relative">
           <button
             onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-900/10 hover:bg-amber-900/20 text-amber-950 border border-amber-900/20 text-xs font-bold transition-all"
+            className="flex items-center gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-xl bg-amber-900/10 hover:bg-amber-900/20 text-amber-950 border border-amber-900/20 text-xs font-bold transition-all"
           >
             <Shield className="w-3.5 h-3.5 text-amber-800" />
             <span className="hidden sm:inline">{currentRole}</span>
-            <span className="text-[10px] text-amber-700 font-normal">({currentUser.name.split(" ")[0]})</span>
+            <span className="hidden sm:inline text-[10px] text-amber-700 font-normal">({currentUser.name.split(" ")[0]})</span>
             <ChevronDown className="w-3 h-3 text-stone-500" />
           </button>
 
@@ -257,7 +257,7 @@ export const TopNav: React.FC = () => {
         {/* Simulate Order Button */}
         <button
           onClick={() => simulateIncomingOrder()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-400 text-xs font-bold shadow-sm transition-all active:scale-95"
+          className="flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-400 text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0"
           title="Generate test incoming multi-channel order"
         >
           <PlusCircle className="w-3.5 h-3.5" />

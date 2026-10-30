@@ -187,9 +187,9 @@ export const LiveTrackingView: React.FC = () => {
   const currentStageIndex = DELIVERY_STAGES.indexOf(activeOrder?.deliveryStage || "Order Placed");
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-stone-100 font-sans">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row h-full overflow-hidden bg-stone-100 font-sans">
       {/* Left Sidebar: Order Journey & Status */}
-      <div className="w-full lg:w-[420px] bg-white border-r border-stone-200 flex flex-col h-full overflow-y-auto shrink-0 shadow-sm">
+      <div className="w-full h-1/2 lg:h-full lg:w-[420px] min-h-0 bg-white border-r border-stone-200 flex flex-col overflow-y-auto shrink-0 shadow-sm">
         {/* Search Header */}
         <div className="p-4 border-b border-stone-200 bg-stone-900 text-white">
           <div className="flex items-center justify-between mb-3">
@@ -446,7 +446,7 @@ export const LiveTrackingView: React.FC = () => {
       </div>
 
       {/* Right Leaflet Map Viewport */}
-      <div className="flex-1 relative flex flex-col h-full bg-stone-200">
+      <div className="flex-1 min-h-0 min-w-0 relative flex flex-col lg:h-full bg-stone-200">
         {/* Map Header Floating Overlay */}
         <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
           <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-lg border border-stone-200/80 pointer-events-auto flex items-center gap-3">

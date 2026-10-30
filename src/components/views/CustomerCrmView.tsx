@@ -18,7 +18,7 @@ export const CustomerCrmView: React.FC = () => {
     : "5.0";
 
   return (
-    <div className="p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
+    <div className="min-w-0 p-4 sm:p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
       {/* Banner */}
       <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">

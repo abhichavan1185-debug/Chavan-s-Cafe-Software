@@ -23,16 +23,16 @@ export const KdsView: React.FC = () => {
   });
 
   return (
-    <div className="p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
+    <div className="min-w-0 p-4 sm:p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
       {/* KDS Header Banner */}
-      <div className="bg-stone-900 text-white p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-stone-900 text-white p-4 sm:p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-13 h-13 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center">
             <ChefHat className="w-7 h-7 stroke-[2.5]" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black tracking-wide">KITCHEN DISPLAY SYSTEM (KDS)</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-black tracking-wide">KITCHEN DISPLAY SYSTEM (KDS)</h2>
               <span className="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
                 Live Kitchen Bump Bar
               </span>
@@ -44,10 +44,10 @@ export const KdsView: React.FC = () => {
         </div>
 
         {/* Filter buttons */}
-        <div className="flex items-center bg-stone-800 p-1 rounded-xl text-xs font-bold border border-stone-700">
+        <div className="flex max-w-full items-center overflow-x-auto bg-stone-800 p-1 rounded-xl text-xs font-bold border border-stone-700">
           <button
             onClick={() => setFilter("active")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg transition-all ${
               filter === "active" ? "bg-amber-500 text-stone-950" : "text-stone-400 hover:text-white"
             }`}
           >
@@ -55,7 +55,7 @@ export const KdsView: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter("cooking")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg transition-all ${
               filter === "cooking" ? "bg-amber-500 text-stone-950" : "text-stone-400 hover:text-white"
             }`}
           >
@@ -63,7 +63,7 @@ export const KdsView: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter("ready")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg transition-all ${
               filter === "ready" ? "bg-amber-500 text-stone-950" : "text-stone-400 hover:text-white"
             }`}
           >

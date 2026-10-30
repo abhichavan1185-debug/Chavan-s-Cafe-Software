@@ -297,7 +297,7 @@ export const CustomerStoreView: React.FC = () => {
 
           {/* Search & Veg Filter */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-stone-100">
-            <div className="relative flex-1 min-w-[260px]">
+            <div className="relative flex-1 min-w-0 w-full sm:min-w-[260px]">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
                 type="text"

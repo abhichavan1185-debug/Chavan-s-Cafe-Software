@@ -15,7 +15,7 @@ export const TablesView: React.FC = () => {
   const occupiedCount = tables.filter((t) => t.status !== "available").length;
 
   return (
-    <div className="p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
+    <div className="min-w-0 p-4 sm:p-6 bg-stone-100 flex-1 overflow-y-auto space-y-6">
       {/* Top Banner */}
       <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
