@@ -13,7 +13,8 @@ import {
   CafeExpense,
   CafeSettings,
   PartnerLocationUpdate,
-  OrderFeedback
+  OrderFeedback,
+  MenuItem
 } from "../types";
 import {
   INITIAL_ORDERS,
@@ -30,10 +31,78 @@ import { MENU_ITEMS } from "../data/menuData";
 import { playChime } from "../utils/audio";
 import {
   getSupabaseClient,
-  saveOrderToSupabase,
   pushGpsLocationToSupabase,
   subscribeToGpsLocations
 } from "../services/supabase";
+import {
+  CafeCollection,
+  CafeRecordRow,
+  deleteCafeRecord,
+  loadCafeRecords,
+  saveCafeRecords,
+  subscribeToCafeRecords
+} from "../services/cafeRecords";
+
+const loadMenuItems = (): MenuItem[] => {
+  const savedItems = localStorage.getItem("shrus_custom_menu_items");
+  let items = MENU_ITEMS;
+  if (savedItems) {
+    try {
+      items = JSON.parse(savedItems) as MenuItem[];
+    } catch (error) {
+      console.error("[Cafe data] Could not read saved menu items:", error);
+    }
+  }
+
+  const savedAvailability = localStorage.getItem("shrus_menu_availability");
+  if (!savedAvailability) return items;
+
+  try {
+    const availability = JSON.parse(savedAvailability) as Record<string, boolean>;
+    return items.map((item) =>
+      typeof availability[item.id] === "boolean"
+        ? { ...item, isAvailable: availability[item.id] }
+        : item
+    );
+  } catch (error) {
+    console.error("[Cafe data] Could not read saved menu availability:", error);
+    return items;
+  }
+};
+
+const cafeRowsFor = <T extends object>(
+  collection: CafeCollection,
+  records: T[]
+): Array<{ recordId: string; data: Record<string, unknown> }> =>
+  records.map((record) => {
+    const data = { ...record } as Record<string, unknown>;
+    const recordId = collection === "settings" ? "main" : String(data.id ?? "");
+    if (!recordId) throw new Error(`A ${collection} record is missing its ID.`);
+    return { recordId, data };
+  });
+
+const snapshotFor = (
+  collection: CafeCollection,
+  records: Array<{ recordId: string; data: Record<string, unknown> }>
+): Map<string, string> =>
+  new Map(records.map(({ recordId, data }) => [recordId, JSON.stringify(data)]));
+
+const applyRemoteListRecord = <T extends { id: string | number }>(
+  setter: React.Dispatch<React.SetStateAction<T[]>>,
+  event: "INSERT" | "UPDATE" | "DELETE",
+  row: CafeRecordRow
+) => {
+  setter((current) => {
+    const index = current.findIndex((item) => String(item.id) === row.record_id);
+    if (event === "DELETE") {
+      return index < 0 ? current : current.filter((item) => String(item.id) !== row.record_id);
+    }
+
+    const value = row.data as unknown as T;
+    if (index < 0) return [value, ...current];
+    return current.map((item, itemIndex) => (itemIndex === index ? value : item));
+  });
+};
 
 export const DELIVERY_STAGES: DeliveryStage[] = [
   "Order Placed",
@@ -66,6 +135,13 @@ interface RestaurantContextType {
   inventory: InventoryItem[];
   customers: CustomerProfile[];
   expenses: CafeExpense[];
+  menuItems: MenuItem[];
+  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
+  dataLoading: boolean;
+  restoreCafeBackup: (backup: unknown) => Promise<void>;
+  syncAllCafeData: () => Promise<void>;
+  userEmail: string;
+  signOut: () => Promise<void>;
 
   // Navigation & UI
   activeView: string;
@@ -134,7 +210,11 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const RestaurantProvider: React.FC<{
+  children: React.ReactNode;
+  userEmail: string;
+  onSignOut: () => Promise<void>;
+}> = ({ children, userEmail, onSignOut }) => {
   // Settings
   const [settings, setSettings] = useState<CafeSettings>(() => {
     const saved = localStorage.getItem("shrus_settings_v3");
@@ -186,6 +266,22 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const saved = localStorage.getItem("shrus_expenses_v3");
     return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
   });
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
+  const [dataLoading, setDataLoading] = useState(true);
+  const localDataPresentRef = useRef({
+    settings: localStorage.getItem("shrus_settings_v3") !== null,
+    orders: localStorage.getItem("shrus_orders_v3") !== null,
+    partners: localStorage.getItem("shrus_partners_v3") !== null,
+    tables: localStorage.getItem("shrus_tables_v3") !== null,
+    inventory: localStorage.getItem("shrus_inventory_v3") !== null,
+    customers: localStorage.getItem("shrus_customers_v3") !== null,
+    expenses: localStorage.getItem("shrus_expenses_v3") !== null,
+    feedbacks: localStorage.getItem("shrus_feedbacks_v1") !== null,
+    menu: localStorage.getItem("shrus_custom_menu_items") !== null
+  });
+  const syncedRecordsRef = useRef(new Map<CafeCollection, Map<string, string>>());
+  const writeQueuesRef = useRef(new Map<CafeCollection, Promise<void>>());
+  const dataReadyRef = useRef(false);
 
   // UI States
   const [activeView, setActiveView] = useState<string>("pos");
@@ -247,6 +343,195 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     localStorage.setItem("shrus_feedbacks_v1", JSON.stringify(feedbacks));
   }, [feedbacks]);
+
+  useEffect(() => {
+    localStorage.setItem("shrus_custom_menu_items", JSON.stringify(menuItems));
+    localStorage.setItem(
+      "shrus_menu_availability",
+      JSON.stringify(Object.fromEntries(menuItems.map((item) => [item.id, item.isAvailable])))
+    );
+  }, [menuItems]);
+
+  useEffect(() => {
+    let active = true;
+
+    const hydrateFromSupabase = async () => {
+      try {
+        const rows = await loadCafeRecords();
+        if (!active) return;
+
+        const recordsFor = <T,>(collection: CafeCollection, fallback: T[]): T[] => {
+          const collectionRows = rows.filter((row) => row.collection === collection);
+          return collectionRows.length
+            ? collectionRows.map((row) => row.data as T)
+            : localDataPresentRef.current[collection] || rows.length === 0
+              ? fallback
+              : [];
+        };
+        const settingsRow = rows.find(
+          (row) => row.collection === "settings" && row.record_id === "main"
+        );
+        const nextSettings = settingsRow
+          ? (settingsRow.data as unknown as CafeSettings)
+          : localDataPresentRef.current.settings || rows.length === 0
+            ? settings
+            : CAFE_SETTINGS;
+        const nextOrders = recordsFor("orders", orders);
+        const nextPartners = recordsFor("partners", partners);
+        const nextTables = recordsFor("tables", tables);
+        const nextInventory = recordsFor("inventory", inventory);
+        const nextCustomers = recordsFor("customers", customers);
+        const nextExpenses = recordsFor("expenses", expenses);
+        const nextFeedbacks = recordsFor("feedbacks", feedbacks);
+        const nextMenuItems = recordsFor("menu", menuItems);
+
+        setSettings(nextSettings);
+        setOrders(nextOrders);
+        setPartners(nextPartners);
+        setTables(nextTables);
+        setInventory(nextInventory);
+        setCustomers(nextCustomers);
+        setExpenses(nextExpenses);
+        setFeedbacks(nextFeedbacks);
+        setMenuItems(nextMenuItems);
+
+        syncedRecordsRef.current = new Map([
+          ["settings", snapshotFor("settings", cafeRowsFor("settings", [nextSettings]))],
+          ["orders", snapshotFor("orders", cafeRowsFor("orders", nextOrders))],
+          ["partners", snapshotFor("partners", cafeRowsFor("partners", nextPartners))],
+          ["tables", snapshotFor("tables", cafeRowsFor("tables", nextTables))],
+          ["inventory", snapshotFor("inventory", cafeRowsFor("inventory", nextInventory))],
+          ["customers", snapshotFor("customers", cafeRowsFor("customers", nextCustomers))],
+          ["expenses", snapshotFor("expenses", cafeRowsFor("expenses", nextExpenses))],
+          ["feedbacks", snapshotFor("feedbacks", cafeRowsFor("feedbacks", nextFeedbacks))],
+          ["menu", snapshotFor("menu", cafeRowsFor("menu", nextMenuItems))]
+        ]);
+        dataReadyRef.current = true;
+        setSupabaseConnected(true);
+      } catch (error) {
+        console.error("[Supabase] Could not load cafe data:", error);
+        if (active) {
+          setSupabaseConnected(false);
+          setNotificationToast(
+            error instanceof Error ? error.message : "Could not load cafe data from Supabase."
+          );
+        }
+      } finally {
+        if (active) setDataLoading(false);
+      }
+    };
+
+    void hydrateFromSupabase();
+    return () => {
+      active = false;
+      dataReadyRef.current = false;
+    };
+  }, []);
+
+  const persistCollection = useCallback(
+    (
+      collection: CafeCollection,
+      records: Array<{ recordId: string; data: Record<string, unknown> }>
+    ) => {
+      if (!dataReadyRef.current) return;
+
+      const previous = syncedRecordsRef.current.get(collection) || new Map<string, string>();
+      const next = snapshotFor(collection, records);
+      const changedRecords = records.filter(
+        ({ recordId, data }) => previous.get(recordId) !== JSON.stringify(data)
+      );
+      const removedIds = [...previous.keys()].filter((recordId) => !next.has(recordId));
+      syncedRecordsRef.current.set(collection, next);
+      if (!changedRecords.length && !removedIds.length) return;
+
+      const queued = writeQueuesRef.current.get(collection) || Promise.resolve();
+      const operation = queued
+        .catch(() => undefined)
+        .then(async () => {
+          await saveCafeRecords(collection, changedRecords);
+          await Promise.all(removedIds.map((recordId) => deleteCafeRecord(collection, recordId)));
+        })
+        .catch((error: unknown) => {
+          console.error(`[Supabase] Could not sync ${collection}:`, error);
+          setNotificationToast(
+            error instanceof Error ? error.message : `Could not sync ${collection} to Supabase.`
+          );
+        });
+      writeQueuesRef.current.set(collection, operation);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!dataLoading) persistCollection("settings", cafeRowsFor("settings", [settings]));
+  }, [dataLoading, persistCollection, settings]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("orders", cafeRowsFor("orders", orders));
+  }, [dataLoading, orders, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("partners", cafeRowsFor("partners", partners));
+  }, [dataLoading, partners, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("tables", cafeRowsFor("tables", tables));
+  }, [dataLoading, persistCollection, tables]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("inventory", cafeRowsFor("inventory", inventory));
+  }, [dataLoading, inventory, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("customers", cafeRowsFor("customers", customers));
+  }, [customers, dataLoading, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("expenses", cafeRowsFor("expenses", expenses));
+  }, [dataLoading, expenses, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("feedbacks", cafeRowsFor("feedbacks", feedbacks));
+  }, [dataLoading, feedbacks, persistCollection]);
+  useEffect(() => {
+    if (!dataLoading) persistCollection("menu", cafeRowsFor("menu", menuItems));
+  }, [dataLoading, menuItems, persistCollection]);
+
+  useEffect(() => {
+    if (dataLoading) return;
+    return subscribeToCafeRecords((event, row) => {
+      const snapshots = syncedRecordsRef.current.get(row.collection);
+      if (event === "DELETE") {
+        snapshots?.delete(row.record_id);
+      } else if (snapshots) {
+        snapshots.set(row.record_id, JSON.stringify(row.data));
+      }
+
+      switch (row.collection) {
+        case "settings":
+          if (event === "DELETE") setSettings(CAFE_SETTINGS);
+          else setSettings(row.data as unknown as CafeSettings);
+          break;
+        case "orders":
+          applyRemoteListRecord(setOrders, event, row);
+          break;
+        case "partners":
+          applyRemoteListRecord(setPartners, event, row);
+          break;
+        case "tables":
+          applyRemoteListRecord(setTables, event, row);
+          break;
+        case "inventory":
+          applyRemoteListRecord(setInventory, event, row);
+          break;
+        case "customers":
+          applyRemoteListRecord(setCustomers, event, row);
+          break;
+        case "expenses":
+          applyRemoteListRecord(setExpenses, event, row);
+          break;
+        case "feedbacks":
+          applyRemoteListRecord(setFeedbacks, event, row);
+          break;
+        case "menu":
+          applyRemoteListRecord(setMenuItems, event, row);
+          break;
+      }
+    });
+  }, [dataLoading]);
 
   // Check Supabase connection and subscribe to realtime GPS updates
   const checkSupabaseStatus = useCallback(() => {
@@ -499,9 +784,6 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
     }
 
-    // Auto-sync order to Supabase
-    saveOrderToSupabase(fullOrder);
-
     if (soundEnabled) playChime("new-order");
     showToast(`Order #${fullOrder.id} generated (${fullOrder.platform})`);
     return fullOrder;
@@ -525,7 +807,6 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           deliveryStage: newStage,
           riderProgress: status === "Delivered" ? 1.0 : o.riderProgress
         };
-        saveOrderToSupabase(updated);
         return updated;
       })
     );
@@ -578,7 +859,6 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             status: nextStatus,
             riderProgress: progressMap[nextStage] || 0.5
           };
-          saveOrderToSupabase(updated);
           return updated;
         }
         return o;
@@ -731,8 +1011,13 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const simulateIncomingOrder = (forcedPlatform?: OrderPlatform) => {
     const platforms: OrderPlatform[] = ["Swiggy", "Zomato", "Customer-Online"];
     const platform = forcedPlatform || platforms[Math.floor(Math.random() * platforms.length)];
-    const randomDish1 = MENU_ITEMS[Math.floor(Math.random() * MENU_ITEMS.length)];
-    const randomDish2 = MENU_ITEMS[Math.floor(Math.random() * MENU_ITEMS.length)];
+    const availableMenuItems = menuItems.filter((item) => item.isAvailable);
+    if (!availableMenuItems.length) {
+      showToast("Add an available dish before generating a test order.");
+      return;
+    }
+    const randomDish1 = availableMenuItems[Math.floor(Math.random() * availableMenuItems.length)];
+    const randomDish2 = availableMenuItems[Math.floor(Math.random() * availableMenuItems.length)];
 
     const customersNames = [
       { name: "Rohit Sardesai", phone: "+91 98223 99120", addr: "Bhandarkar Road, Pune" },
@@ -901,7 +1186,6 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cancelReason: reason,
         cancelledAt: new Date().toISOString()
       };
-      saveOrderToSupabase(cancelled);
       return cancelled;
     });
 
@@ -959,6 +1243,88 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     showToast(`Thank you! Feedback received (${fbData.rating} ★)`);
   };
 
+  const persistFullCollection = async (
+    collection: CafeCollection,
+    records: Array<{ recordId: string; data: Record<string, unknown> }>
+  ) => {
+    const previous = syncedRecordsRef.current.get(collection) || new Map<string, string>();
+    const next = snapshotFor(collection, records);
+    await saveCafeRecords(collection, records);
+    await Promise.all(
+      [...previous.keys()]
+        .filter((recordId) => !next.has(recordId))
+        .map((recordId) => deleteCafeRecord(collection, recordId))
+    );
+    syncedRecordsRef.current.set(collection, next);
+  };
+
+  const syncAllCafeData = async () => {
+    await persistFullCollection("settings", cafeRowsFor("settings", [settings]));
+    await persistFullCollection("orders", cafeRowsFor("orders", orders));
+    await persistFullCollection("partners", cafeRowsFor("partners", partners));
+    await persistFullCollection("tables", cafeRowsFor("tables", tables));
+    await persistFullCollection("inventory", cafeRowsFor("inventory", inventory));
+    await persistFullCollection("customers", cafeRowsFor("customers", customers));
+    await persistFullCollection("expenses", cafeRowsFor("expenses", expenses));
+    await persistFullCollection("feedbacks", cafeRowsFor("feedbacks", feedbacks));
+    await persistFullCollection("menu", cafeRowsFor("menu", menuItems));
+  };
+
+  const restoreCafeBackup = async (backup: unknown) => {
+    if (!backup || typeof backup !== "object") {
+      throw new Error("The selected file is not a valid cafe backup.");
+    }
+
+    const parsed = backup as {
+      settings?: CafeSettings;
+      data?: Partial<{
+        settings: CafeSettings;
+        orders: Order[];
+        partners: DeliveryPartner[];
+        tables: RestaurantTable[];
+        inventory: InventoryItem[];
+        customers: CustomerProfile[];
+        expenses: CafeExpense[];
+        feedbacks: OrderFeedback[];
+        menuItems: MenuItem[];
+      }>;
+    };
+    if (!parsed.data || typeof parsed.data !== "object") {
+      throw new Error("The selected backup does not contain cafe data.");
+    }
+
+    const data = parsed.data;
+    const nextSettings = data.settings || parsed.settings || settings;
+    const nextOrders = Array.isArray(data.orders) ? data.orders : orders;
+    const nextPartners = Array.isArray(data.partners) ? data.partners : partners;
+    const nextTables = Array.isArray(data.tables) ? data.tables : tables;
+    const nextInventory = Array.isArray(data.inventory) ? data.inventory : inventory;
+    const nextCustomers = Array.isArray(data.customers) ? data.customers : customers;
+    const nextExpenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+    const nextFeedbacks = Array.isArray(data.feedbacks) ? data.feedbacks : feedbacks;
+    const nextMenuItems = Array.isArray(data.menuItems) ? data.menuItems : menuItems;
+
+    await persistFullCollection("settings", cafeRowsFor("settings", [nextSettings]));
+    await persistFullCollection("orders", cafeRowsFor("orders", nextOrders));
+    await persistFullCollection("partners", cafeRowsFor("partners", nextPartners));
+    await persistFullCollection("tables", cafeRowsFor("tables", nextTables));
+    await persistFullCollection("inventory", cafeRowsFor("inventory", nextInventory));
+    await persistFullCollection("customers", cafeRowsFor("customers", nextCustomers));
+    await persistFullCollection("expenses", cafeRowsFor("expenses", nextExpenses));
+    await persistFullCollection("feedbacks", cafeRowsFor("feedbacks", nextFeedbacks));
+    await persistFullCollection("menu", cafeRowsFor("menu", nextMenuItems));
+
+    setSettings(nextSettings);
+    setOrders(nextOrders);
+    setPartners(nextPartners);
+    setTables(nextTables);
+    setInventory(nextInventory);
+    setCustomers(nextCustomers);
+    setExpenses(nextExpenses);
+    setFeedbacks(nextFeedbacks);
+    setMenuItems(nextMenuItems);
+  };
+
   return (
     <RestaurantContext.Provider
       value={{
@@ -974,6 +1340,13 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         inventory,
         customers,
         expenses,
+        menuItems,
+        setMenuItems,
+        dataLoading,
+        restoreCafeBackup,
+        syncAllCafeData,
+        userEmail,
+        signOut: onSignOut,
         activeView,
         setActiveView,
         activeTrackOrderId,

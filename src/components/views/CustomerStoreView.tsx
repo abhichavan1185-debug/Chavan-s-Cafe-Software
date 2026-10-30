@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useRestaurant } from "../../context/RestaurantContext";
-import { MENU_ITEMS, ALL_CATEGORIES, FALLBACK_FOOD_IMAGE, SVG_FOOD_FALLBACK } from "../../data/menuData";
+import { ALL_CATEGORIES, FALLBACK_FOOD_IMAGE, SVG_FOOD_FALLBACK } from "../../data/menuData";
 import { CategoryName, MenuItem, OrderType } from "../../types";
 import {
   ShoppingBag,
@@ -30,7 +30,8 @@ export const CustomerStoreView: React.FC = () => {
     tables,
     orders,
     openCancelModal,
-    openFeedbackModal
+    openFeedbackModal,
+    menuItems
   } = useRestaurant();
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryName | "All">("All");
@@ -59,7 +60,8 @@ export const CustomerStoreView: React.FC = () => {
 
   // Filtered menu
   const filteredDishes = useMemo(() => {
-    return MENU_ITEMS.filter((item) => {
+    return menuItems.filter((item) => {
+      if (!item.isAvailable) return false;
       const matchCategory = selectedCategory === "All" || item.category === selectedCategory;
       const matchDiet =
         dietaryFilter === "all" ||
@@ -72,7 +74,7 @@ export const CustomerStoreView: React.FC = () => {
         item.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCategory && matchDiet && matchSearch;
     });
-  }, [selectedCategory, dietaryFilter, searchQuery]);
+  }, [menuItems, selectedCategory, dietaryFilter, searchQuery]);
 
   const addToCart = (item: MenuItem) => {
     setCart((prev) => {

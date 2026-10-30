@@ -13,7 +13,8 @@ import {
   Shield,
   Radio,
   UserCheck,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from "lucide-react";
 
 export const TopNav: React.FC = () => {
@@ -26,9 +27,12 @@ export const TopNav: React.FC = () => {
     setSoundEnabled,
     simulateIncomingOrder,
     setIsMobileMenuOpen,
+    showToast,
     settings,
     currentRole,
     currentUser,
+    userEmail,
+    signOut,
     switchRole,
     staffList,
     supabaseConnected
@@ -199,7 +203,7 @@ export const TopNav: React.FC = () => {
             <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-3 py-1.5 border-b border-stone-100">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
-                  Switch Active Role
+                  Switch Display Role
                 </span>
               </div>
               {roles.map((r) => (
@@ -262,6 +266,20 @@ export const TopNav: React.FC = () => {
         >
           <PlusCircle className="w-3.5 h-3.5" />
           <span className="hidden md:inline">Test Order</span>
+        </button>
+
+        <button
+          onClick={() => {
+            void signOut().catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : "Could not sign out.";
+              showToast(message);
+            });
+          }}
+          className="flex items-center justify-center rounded-xl border border-stone-200 p-2 text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900"
+          title={`Sign out ${userEmail}`}
+          aria-label="Sign out"
+        >
+          <LogOut className="h-4 w-4" />
         </button>
       </div>
     </header>

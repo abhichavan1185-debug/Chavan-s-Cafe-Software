@@ -5,6 +5,7 @@
 
 import React from "react";
 import { RestaurantProvider, useRestaurant } from "./context/RestaurantContext";
+import { AuthGate } from "./components/AuthGate";
 import { Sidebar } from "./components/Sidebar";
 import { TopNav } from "./components/TopNav";
 import { PosView } from "./components/views/PosView";
@@ -33,9 +34,25 @@ import {
   MapPin,
   Menu
 } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 function MainApp() {
-  const { activeView, setActiveView, notificationToast, setIsMobileMenuOpen } = useRestaurant();
+  const {
+    activeView,
+    setActiveView,
+    notificationToast,
+    setIsMobileMenuOpen,
+    dataLoading
+  } = useRestaurant();
+
+  if (dataLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center gap-3 bg-stone-100 text-sm font-semibold text-stone-700">
+        <LoaderCircle className="h-5 w-5 animate-spin text-amber-800" />
+        Loading cafe data...
+      </div>
+    );
+  }
 
   const renderActiveView = () => {
     switch (activeView) {
@@ -175,8 +192,12 @@ function MainApp() {
 
 export default function App() {
   return (
-    <RestaurantProvider>
-      <MainApp />
-    </RestaurantProvider>
+    <AuthGate>
+      {(staff) => (
+        <RestaurantProvider userEmail={staff.email} onSignOut={staff.signOut}>
+          <MainApp />
+        </RestaurantProvider>
+      )}
+    </AuthGate>
   );
 }
