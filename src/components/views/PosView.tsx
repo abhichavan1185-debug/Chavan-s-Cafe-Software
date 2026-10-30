@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useRestaurant } from "../../context/RestaurantContext";
-import { DISPLAY_CATEGORIES, matchCategory, FALLBACK_FOOD_IMAGE } from "../../data/menuData";
+import { MENU_ITEMS, DISPLAY_CATEGORIES, matchCategory, FALLBACK_FOOD_IMAGE } from "../../data/menuData";
 import { CategoryName, MenuItem, OrderType, Order } from "../../types";
 import {
   Search,
@@ -35,8 +35,7 @@ export const PosView: React.FC = () => {
     tables,
     orders,
     settings,
-    openCancelModal,
-    menuItems
+    openCancelModal
   } = useRestaurant();
 
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -69,8 +68,7 @@ export const PosView: React.FC = () => {
 
   // Filtered menu using 23 category matcher
   const filteredDishes = useMemo(() => {
-    let result = menuItems.filter((item) => {
-      if (!item.isAvailable) return false;
+    let result = MENU_ITEMS.filter((item) => {
       const catMatch = selectedCategory === "All" || matchCategory(item.category, selectedCategory);
       const dietMatch =
         dietaryFilter === "all" ||
@@ -91,7 +89,7 @@ export const PosView: React.FC = () => {
     }
 
     return result;
-  }, [menuItems, selectedCategory, dietaryFilter, searchQuery, sortBy]);
+  }, [selectedCategory, dietaryFilter, searchQuery, sortBy]);
 
   // Cart actions
   const addToCart = (item: MenuItem) => {

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { DISPLAY_CATEGORIES, matchCategory, FALLBACK_FOOD_IMAGE } from "../../data/menuData";
+import React, { useState, useMemo, useEffect } from "react";
+import { MENU_ITEMS, DISPLAY_CATEGORIES, matchCategory, FALLBACK_FOOD_IMAGE } from "../../data/menuData";
 import { CategoryName, MenuItem } from "../../types";
 import {
   BookOpen,
@@ -18,9 +18,34 @@ import {
 import { useRestaurant } from "../../context/RestaurantContext";
 
 export const MenuAdminView: React.FC = () => {
-  const { showToast, menuItems: itemsList, setMenuItems } = useRestaurant();
+  const { showToast } = useRestaurant();
   const [selectedCat, setSelectedCat] = useState<string>("All");
   const [search, setSearch] = useState<string>("");
+
+  // Menu items list (seeded from MENU_ITEMS + custom added items)
+  const [itemsList, setItemsList] = useState<MenuItem[]>(() => {
+    const saved = localStorage.getItem("shrus_custom_menu_items");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return MENU_ITEMS;
+  });
+
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("shrus_menu_availability");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    const map: Record<string, boolean> = {};
+    itemsList.forEach((i) => {
+      map[i.id] = i.isAvailable;
+    });
+    return map;
+  });
 
   // Modal for Add/Edit item
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -37,6 +62,14 @@ export const MenuAdminView: React.FC = () => {
     isAvailable: true
   });
 
+  useEffect(() => {
+    localStorage.setItem("shrus_menu_availability", JSON.stringify(availabilityMap));
+  }, [availabilityMap]);
+
+  useEffect(() => {
+    localStorage.setItem("shrus_custom_menu_items", JSON.stringify(itemsList));
+  }, [itemsList]);
+
   const filtered = useMemo(() => {
     return itemsList.filter((i) => {
       const matchCat = selectedCat === "All" || matchCategory(i.category, selectedCat);
@@ -49,11 +82,10 @@ export const MenuAdminView: React.FC = () => {
   }, [itemsList, selectedCat, search]);
 
   const toggleAvailability = (id: string) => {
-    setMenuItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
-      )
-    );
+    setAvailabilityMap((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
     showToast("Dish availability updated");
   };
 
@@ -88,7 +120,7 @@ export const MenuAdminView: React.FC = () => {
 
     if (editingItem) {
       // Update
-      setMenuItems((prev) =>
+      setItemsList((prev) =>
         prev.map((i) => (i.id === editingItem.id ? { ...i, ...formData } as MenuItem : i))
       );
       showToast(`Updated "${formData.name}"`);
@@ -108,7 +140,8 @@ export const MenuAdminView: React.FC = () => {
         isAvailable: true,
         rating: 4.9
       };
-      setMenuItems((prev) => [newItem, ...prev]);
+      setItemsList((prev) => [newItem, ...prev]);
+      setAvailabilityMap((prev) => ({ ...prev, [newId]: true }));
       showToast(`Added new dish "${newItem.name}" to menu!`);
     }
 
@@ -117,7 +150,7 @@ export const MenuAdminView: React.FC = () => {
 
   const handleDeleteItem = (id: string, name: string) => {
     if (confirm(`Are you sure you want to remove "${name}" from the menu catalog?`)) {
-      setMenuItems((prev) => prev.filter((i) => i.id !== id));
+      setItemsList((prev) => prev.filter((i) => i.id !== id));
       showToast(`Removed "${name}"`);
     }
   };
@@ -200,7 +233,7 @@ export const MenuAdminView: React.FC = () => {
       {/* Menu Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.map((item) => {
-          const isAvail = item.isAvailable;
+          const isAvail = availabilityMap[item.id] ?? true;
           return (
             <div
               key={item.id}
