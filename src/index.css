@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary-brown: #78350f;
+    --dark-brown: #451a03;
+    --gold: #f59e0b;
+    --gold-dark: #d97706;
+  }
+}
+
+/* Custom scrollbars for high density POS terminals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Receipt Print Media Queries */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #thermal-print-area,
+  #thermal-print-area * {
+    visibility: visible !important;
+  }
+  #thermal-print-area {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+}

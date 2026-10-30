@@ -1,0 +1,8 @@
+{
+  "name": "Chavan's Cafe - Restaurant POS & Delivery Hub",
+  "description": "Enterprise restaurant POS, multi-channel Swiggy & Zomato order management, live delivery tracking, kitchen display system, and online ordering ecosystem.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
